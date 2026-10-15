@@ -5,7 +5,7 @@
   "description": "minicanvas template",
   "extensions": {
     "com.github.copilot": {
-      "logo": "assets/preview_256.png"
+      "logo": "assets/preview.png"
     }
   },
   "skills": [
