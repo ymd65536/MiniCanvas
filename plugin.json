@@ -1,0 +1,6 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "minicanvas-skills",
+  "version": "0.0.1",
+  "description": "Existing MiniCanvas skills (separate from the Minimum Canvas plugin)."
+}

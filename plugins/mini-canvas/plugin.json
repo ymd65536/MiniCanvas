@@ -2,12 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "mini-canvas",
   "version": "0.0.1",
-  "description": "Minimal example canvas extension",
+  "description": "Minimum Canvas: a minimal Canvas Extension template with a click counter.",
   "repository": "https://github.com/ymd65536/MiniCanvas",
-  "license": "MIT",
-  "extensions": {
-    "com.github.copilot": {
-      "logo": "assets/preview.png"
-    }
-  }
+  "license": "MIT"
 }
