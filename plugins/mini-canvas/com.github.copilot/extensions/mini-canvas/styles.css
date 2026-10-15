@@ -1,0 +1,63 @@
+:root {
+    color-scheme: light dark;
+    font-family: system-ui, sans-serif;
+    line-height: 1.5;
+    background: #f6f8fa;
+    color: #1f2328;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: clamp(1rem, 5vw, 3rem);
+}
+
+main {
+    max-width: 40rem;
+    margin-inline: auto;
+    overflow-wrap: anywhere;
+}
+
+h1 {
+    line-height: 1.2;
+}
+
+button {
+    max-width: 100%;
+    padding: 0.65rem 1rem;
+    border: 1px solid currentColor;
+    border-radius: 0.5rem;
+    background: #0969da;
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+}
+
+button:focus-visible {
+    outline: 3px solid #0969da;
+    outline-offset: 3px;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+output {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        background: #0d1117;
+        color: #f0f6fc;
+    }
+
+    button:focus-visible {
+        outline-color: #58a6ff;
+    }
+}

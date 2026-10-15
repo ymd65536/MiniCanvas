@@ -9,9 +9,17 @@ than adding unrelated features.
 
 ## Project Layout
 
-- `.github/extensions/mini-canvas/extension.mjs` is the example extension
-  entry point. It registers the Canvas and connects its lifecycle to a local
-  renderer.
+- `.github/extensions/mini-canvas/` is the canonical Canvas Extension source.
+  `extension.mjs` handles SDK registration, static HTTP serving and instance
+  lifecycle only. Never embed HTML or CSS in the entry point.
+- Implement the screen in `index.html`, browser initialization and DOM/display
+  logic in `app.mjs`, and layout/theme styles in `styles.css`.
+- `scripts/sync-plugin.mjs` generates the five distribution files under
+  `plugins/mini-canvas/com.github.copilot/extensions/mini-canvas/`. Never edit
+  those copies manually; generate and commit them with source changes.
+- `plugins/mini-canvas/plugin.json` is the Canvas distribution manifest.
+  Root `plugin.json` is a separate existing Skill plugin; preserve
+  `skills/azure-cost-health-check/SKILL.md` and `LICENSE`.
 - `README.md` is the user-facing setup and usage guide. Update it when setup,
   commands, configuration, or the Canvas behavior changes.
 
@@ -27,6 +35,9 @@ to understand.
   additional APIs.
 - Give every Canvas a stable, unique `id`. Keep its `displayName`,
   `description`, opened title, and README description consistent.
+- Keep Canvas ID (`minimum-canvas`), Extension name (`mini-canvas`) and Plugin
+  metadata distinct. Preserve the Extension manifest's existing name and numeric
+  version unless a task explicitly requires changing them.
 - Keep instance-specific resources keyed by `ctx.instanceId`. The example
   supports multiple open instances; do not accidentally share or overwrite
   their servers or state.
@@ -36,12 +47,17 @@ to understand.
   appropriate, and avoid assumptions that a port is available in advance.
 - Surface startup and rendering errors instead of silently returning a
   success-shaped fallback.
+- Serve only explicitly allowed files with correct MIME types. Never turn a
+  request path into an arbitrary filesystem path. Update the server allowlist,
+  generation file list and tests together when adding renderer files.
 - Do not add secrets, credentials, or machine-specific configuration to the
   repository. Validate and safely handle data crossing the extension/server/
   renderer boundary.
 - Avoid introducing a framework, dependency, build system, or configuration
   unless the requested Canvas needs it. Follow the chosen tool's established
   conventions once introduced.
+- Use Agent Plugins 1.0 root manifests and fixed `skills/` discovery. Do not add
+  undocumented manifest properties or claim Plugin logos are Canvas icons.
 
 ## Implementation Workflow
 
@@ -52,9 +68,13 @@ to understand.
    server or state management.
 3. Update the README and any directly affected documentation so a new user can
    run and understand the Canvas.
-4. Run the relevant checks available in the repository. If there is no test or
-   build setup, at minimum run `node --check` on changed JavaScript modules and
-   describe any validation that could not be performed.
+4. Run `node scripts/sync-plugin.mjs`, then
+   `node scripts/sync-plugin.mjs --check` and `node --test`. No dependency install
+   or build is required. Tests cover syntax, JSON, HTTP, lifecycle, renderer
+   behavior and distribution drift; the SDK host boundary is stubbed.
+   Reopen the Canvas after renderer edits because assets are read at server
+   startup. Distinguish local harness/browser checks from real Copilot app
+   registration and Plugin-installation checks.
 5. Review the final diff for accidental generated files, secrets, and
    unrelated changes.
 

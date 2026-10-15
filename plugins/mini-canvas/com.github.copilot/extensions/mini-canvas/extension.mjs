@@ -1,70 +1,97 @@
-// Extension: tamachine-ai
-// A minimal example canvas.
-//
-// This single-file skeleton is a starting point. For more complex canvases
-// (multiple actions with non-trivial logic, shared state, a custom renderer,
-// etc.) prefer splitting things out: move each action handler into its own
-// function, extract `open`/`onClose` into helpers, and pull large units
-// (renderer assets, schema definitions, shared utilities) into sibling files
-// imported from this entry point. Keep extension.mjs focused on wiring.
-
+import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { joinSession, createCanvas } from "@github/copilot-sdk/extension";
 
-// One local HTTP server per open canvas instance. Each instance gets its own
-// ephemeral port so multiple canvases (or multiple opens of the same canvas)
-// don't collide. Replace this with your real renderer — point a static-file
-// server, a Vite/Next dev server, or any framework you like at the same URL.
 const servers = new Map();
-
-function renderHtml() {
-    return `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Minimum Canvas</title>
-  </head>
-  <body>
-    <h1>Minimum Canvas</h1>
-    <p>The canvas extension is running.</p>
-  </body>
-</html>`;
-}
+const files = [
+    ["index.html", "text/html; charset=utf-8"],
+    ["app.mjs", "text/javascript; charset=utf-8"],
+    ["styles.css", "text/css; charset=utf-8"],
+];
 
 async function startServer() {
+    // Read before listening so missing assets fail open() rather than render a blank panel.
+    const assets = new Map(await Promise.all(files.map(async ([name, type]) => [
+        `/${name}`,
+        { type, body: await readFile(new URL(name, import.meta.url)) },
+    ])));
     const server = createServer((req, res) => {
-        res.setHeader("Content-Type", "text/html; charset=utf-8");
-        res.end(renderHtml());
+        if (req.method !== "GET" && req.method !== "HEAD") {
+            res.writeHead(405, { Allow: "GET, HEAD" });
+            res.end();
+            return;
+        }
+
+        // Exact routes only: never resolve a request path against the filesystem.
+        const path = req.url.split("?")[0];
+        const asset = assets.get(path === "/" ? "/index.html" : path);
+        if (!asset) {
+            res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+            res.end(req.method === "HEAD" ? undefined : "Not found");
+            return;
+        }
+        res.writeHead(200, {
+            "Content-Type": asset.type,
+            "Content-Length": asset.body.length,
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        });
+        res.end(req.method === "HEAD" ? undefined : asset.body);
     });
-    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    server.on("error", (error) => {
+        console.error("Minimum Canvas HTTP server error:", error);
+    });
+    await new Promise((resolve, reject) => {
+        server.once("error", reject);
+        server.listen(0, "127.0.0.1", () => {
+            server.removeListener("error", reject);
+            resolve();
+        });
+    });
     const address = server.address();
     if (!address || typeof address === "string") {
+        await stopServer(server);
         throw new Error("Canvas server did not bind to a TCP port");
     }
-    const port = address.port;
-    return { server, url: `http://127.0.0.1:${port}/` };
+    return { server, url: `http://127.0.0.1:${address.port}/` };
 }
 
-const session = await joinSession({
+function stopServer(server) {
+    return new Promise((resolve, reject) => {
+        server.close((error) => error ? reject(error) : resolve());
+        server.closeAllConnections();
+    });
+}
+
+await joinSession({
     canvases: [
         createCanvas({
             id: "minimum-canvas",
             displayName: "Minimum Canvas",
-            description: "A minimal example canvas.",
+            description: "A minimal Canvas Extension template with a click counter.",
             open: async (ctx) => {
                 let entry = servers.get(ctx.instanceId);
                 if (!entry) {
-                    entry = await startServer();
+                    // Store the promise so concurrent opens share one server per instance.
+                    entry = startServer();
                     servers.set(ctx.instanceId, entry);
                 }
-                return { title: "Minimum Canvas", url: entry.url };
+                try {
+                    const { url } = await entry;
+                    return { title: "Minimum Canvas", url };
+                } catch (error) {
+                    if (servers.get(ctx.instanceId) === entry) {
+                        servers.delete(ctx.instanceId);
+                    }
+                    throw error;
+                }
             },
             onClose: async (ctx) => {
                 const entry = servers.get(ctx.instanceId);
                 if (entry) {
                     servers.delete(ctx.instanceId);
-                    await new Promise((resolve) => entry.server.close(() => resolve()));
+                    const { server } = await entry;
+                    await stopServer(server);
                 }
             },
         }),
